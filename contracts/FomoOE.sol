@@ -9,8 +9,9 @@ contract FomoOE {
     uint public totalKeys;
     mapping(address => uint) public keyBalance;
     
-    event keysPurchased(address _by, uint _amount);
+    event keysPurchased(uint _userKeyBalance, uint _totalKeys, uint _keyPrice);
     event contractBalance(uint _balanceReceived);
+    event currentKeyPrice(uint keyPrice);
     constructor() {
         owner = msg.sender;
     }
@@ -32,15 +33,20 @@ contract FomoOE {
     }
 
     function purchaseKeys(uint _amount) public payable {
-        require(msg.value*_amount == keyPrice*_amount, "not enough to buy the key(s).");
+        // require(msg.value*_amount == keyPrice*_amount, "not enough to buy the key(s).");
         keyBalance[msg.sender] += _amount;
-        // keyPrice = keyPrice + _amount;
-        emit keysPurchased(msg.sender, _amount);   
+        totalKeys += _amount;
+        keyPrice = keyPrice + _amount;
+        emit keysPurchased(keyBalance[msg.sender], totalKeys, keyPrice);   
+        // emit currentKeyPrice(keyPrice);
     } 
-    function getKeyBalance() public view returns(uint) {
+    function getTotalKeyBalance() public view returns(uint) {
+        return totalKeys;
+    }
+    function getUserKeyBalance() public view returns(uint) {
         return keyBalance[msg.sender];
     }
-    
+
     function getKeyPrice() public view returns(uint) {
         return keyPrice;
     }

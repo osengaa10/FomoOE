@@ -2,12 +2,21 @@ import React, { Component } from "react";
 // import ItemManagerContract from "./contracts/ItemManager.json";
 import FomoContract from "./contracts/FomoOE.json";
 import getWeb3 from "./getWeb3";
-import Button from 'react-bootstrap/Button';
+import {Button, Badge, Alert} from 'react-bootstrap';
 
 import "./App.css";
 
 class App extends Component {
-  state = { loaded: false, deposit: 0, withdraw: 0, total: 0 };
+  state = { 
+    loaded: false, 
+    deposit: 0, 
+    withdraw: 0, 
+    total: 0,
+    totalKeyBalance: 0,
+    userKeyBalance: 0,
+    userKeyPurchaseAmount: 0,
+    keyPrice: 100
+   };
 
   componentDidMount = async () => {
     try {
@@ -20,6 +29,7 @@ class App extends Component {
       this.accounts = await this.web3.eth.getAccounts();
       console.log("this.accounts: ");
       console.log(this.accounts);
+
       // Get the contract instance.
       this.networkId = await this.web3.eth.net.getId();
       console.log("this.networkId: ");
@@ -51,6 +61,12 @@ class App extends Component {
       console.error(error);
     }
     this.listenToDepositEvent();
+    this.listenToKeyPurchaseEvent();
+
+    this.getContractBalance();
+    this.getUserKeyBalance();
+    this.getTotalKeyBalance();
+    this.getKeyPrice();
   };
 
   // listenToPaymentEvent = () => {
@@ -65,12 +81,25 @@ class App extends Component {
   //   });
   // }
   listenToDepositEvent = () => {
-    this.fomo.events.contractBalance().on("data", (evt) => {
+    this.fomo.events.contractBalance().on("data", async (evt) => {
       // console.log(evt.returnValues._balanceReceived);
       // let totalBalance = await this
       this.setState({ withdraw: evt.returnValues._balanceReceived }); 
       console.log("this.state.withdraw:");   
       console.log(this.state.withdraw);  
+    });
+
+  }
+
+  listenToKeyPurchaseEvent = () => {
+    this.fomo.events.keysPurchased().on("data", async (evt) => {
+      // console.log(evt.returnValues._balanceReceived);
+      // let totalBalance = await this
+      this.setState({ userKeyBalance: evt.returnValues._userKeyBalance }); 
+      this.setState({ totalKeyBalance: evt.returnValues._totalKeys });
+      this.setState({ keyPrice: evt.returnValues._keyPrice })
+      console.log("this.state.userKeyBalance:");   
+      console.log(this.state.userKeyBalance);  
     });
 
   }
@@ -96,10 +125,7 @@ class App extends Component {
     });
     console.log("result: ")
     console.log(result);
-    // const {amount} = this.state;
-    // let result = await this.fomo.methods.purchaseKeys(amount).send({from: this.accounts[0], to: "0x000000000"});
-    // console.log(result);
-    // alert("Send " + cost+amount + " Wei to " + result.events.SupplyChainStep.returnValues._address);
+
   }
 
   handleWithdraw = async() => {
@@ -114,10 +140,59 @@ class App extends Component {
 
   getContractBalance = async() => {
     let balanceResult = await this.fomo.methods.getBalance().call()
-      
     this.setState({ withdraw: balanceResult });
     console.log("balanceResult");
     console.log(balanceResult);
+  }
+
+  getUserKeyBalance = async() => {
+    let getUserKeyBalanceResult = await this.fomo.methods.getUserKeyBalance().call()
+    this.setState({ userKeyBalance: getUserKeyBalanceResult });
+    console.log("getUserKeyBalanceResult");
+    console.log(getUserKeyBalanceResult);
+  }
+
+
+  getTotalKeyBalance = async() => {
+    let getTotalKeyBalanceResult = await this.fomo.methods.getTotalKeyBalance().call()
+    this.setState({ totalKeyBalance: getTotalKeyBalanceResult });
+    console.log("getTotalKeyBalanceResult");
+    console.log(getTotalKeyBalanceResult);
+  }
+
+  getKeyPrice = async() => {
+    let getKeyPriceResult = await this.fomo.methods.getKeyPrice().call()
+    this.setState({ keyPrice: getKeyPriceResult });
+    console.log("getKeyPriceResult");
+    console.log(getKeyPriceResult);
+  }
+
+
+  handleKeyAmountChange = (event) => {
+    const target = event.target;
+    const value = target.type === "checkbox" ? target.checked : target.value;
+    const name = target.name;
+    console.log("event: ");
+    console.log(event);
+    this.setState({
+      userKeyPurchaseAmount: event.target.value
+    });
+  }
+
+  handlePurchaseKeys = async() => {
+    console.log("this.state.userKeyPurchaseAmount:");
+    console.log(this.state.userKeyPurchaseAmount);
+    let amountToPay = this.state.userKeyPurchaseAmount*this.state.keyPrice;
+    console.log("amountToPay:");
+    console.log(amountToPay);
+    let result = await this.fomo.methods.purchaseKeys(this.state.userKeyPurchaseAmount).send({
+      from: this.accounts[0], 
+      to: this.CONTRACT_ADDRESS, 
+      value: amountToPay
+    });
+    console.log("handlePurchaseKeys result: ")
+    console.log(result);
+
   }
 
   
@@ -132,9 +207,18 @@ class App extends Component {
         <h2>Amount in Contract: {this.state.withdraw} wei</h2>
         <div className="d-grid gap-2">
         Amount to deposit: <input type="number" name="deposit" value={this.state.deposit} onChange={this.handleInputChange} />
-        <Button type="button" onClick={this.handleSubmit}>Deposit</Button>{' '}
-        <Button variant="primary" size="lg" onClick={this.handleWithdraw}>Withdraw</Button>
-        <Button type="button" onClick={this.getContractBalance}>Get Contract Balance</Button>
+        <Button variant="danger" type="button" onClick={this.handleSubmit}>Deposit</Button>{' '}
+        <Button variant="success" size="lg" onClick={this.handleWithdraw}>Withdraw</Button>
+        {/* <Button variant="info" type="button" onClick={this.getContractBalance}>Get Contract Balance</Button> */}
+        </div>
+        <div className="d-grid gap-2">
+          <h2>Total Keys Bought: {this.state.totalKeyBalance}</h2>
+          <h3>Current Key Price: {this.state.keyPrice}</h3>
+          Amount of keys to buy: <input type="number" name="userKeyPurchaseAmount" value={this.state.userKeyPurchaseAmount} onChange={this.handleKeyAmountChange} />
+          <Button variant="info" type="button" onClick={this.handlePurchaseKeys}>Buy Keys!!!</Button>{' '}
+          <Alert >
+              Keys owned: {this.state.userKeyBalance}
+          </Alert>
         </div>
       </div>
     );
