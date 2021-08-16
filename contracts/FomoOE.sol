@@ -79,8 +79,18 @@ contract FomoOE {
         uint userDivPool = divPool - divTracker[msg.sender]._totalDivPoolAtWithdraw;
         uint numerator = divTracker[msg.sender]._keyBalance * userDivPool;
         uint _divBalance = numerator/totalKeys;
+        emit keysPurchased(divTracker[msg.sender]._keyBalance, totalKeys, keyPrice, divPool, jackpot);
         emit userDivvies(_divBalance);
         return _divBalance;
+    }
+
+    function updateDivvies2() public {
+        // the pool a user's dividend is entitled to since last dividend withdraw.
+        uint userDivPool = divPool - divTracker[msg.sender]._totalDivPoolAtWithdraw;
+        uint numerator = divTracker[msg.sender]._keyBalance * userDivPool;
+        uint _divBalance = numerator/totalKeys;
+        emit keysPurchased(divTracker[msg.sender]._keyBalance, totalKeys, keyPrice, divPool, jackpot);
+        emit userDivvies(_divBalance);
     }
     
 

@@ -14,19 +14,35 @@ import Keys from './components/Keys';
 import "./App.css";
 
 class App extends Component {
-  state = { 
-    loaded: false, 
-    deposit: 0, 
-    withdraw: 0, 
-    total: 0,
-    totalKeyBalance: 0,
-    userKeyBalance: 0,
-    userKeyPurchaseAmount: 0,
-    keyPrice: 100,
-    divPool: 0,
-    jackpot: 0,
-    userDivvies: 0
-   };
+  constructor(props) {
+    super(props)
+      this.state = { 
+        loaded: false, 
+        account: '',
+        deposit: 0, 
+        withdraw: 0, 
+        total: 0,
+        totalKeyBalance: 0,
+        userKeyBalance: 0,
+        userKeyPurchaseAmount: 0,
+        keyPrice: 100,
+        divPool: 0,
+        jackpot: 0,
+        userDivvies: 0
+      };
+    this.listenToDepositEvent = this.listenToDepositEvent.bind(this);
+    this.listenToKeyPurchaseEvent = this.listenToKeyPurchaseEvent.bind(this);
+    this.listenToUpdateDivviesEvent = this.listenToUpdateDivviesEvent.bind(this);
+
+    this.getContractBalance = this.getContractBalance.bind(this);
+    this.getUserKeyBalance = this.getUserKeyBalance.bind(this);
+    this.getTotalKeyBalance = this.getTotalKeyBalance.bind(this);
+    this.getKeyPrice = this.getKeyPrice.bind(this);
+    this.handleUpdateDivvies = this.handleUpdateDivvies.bind(this);
+  }
+  
+
+
 
   componentDidMount = async () => {
     try {
@@ -37,8 +53,9 @@ class App extends Component {
 
       // Use web3 to get the user's accounts.
       this.accounts = await this.web3.eth.getAccounts();
-      console.log("this.accounts: ");
-      console.log(this.accounts);
+      this.setState({ account: this.accounts[0] });
+      console.log("this.state.account: ");
+      console.log(this.state.account);
 
       // Get the contract instance.
       this.networkId = await this.web3.eth.net.getId();
@@ -74,7 +91,7 @@ class App extends Component {
     this.getUserKeyBalance();
     this.getTotalKeyBalance();
     this.getKeyPrice();
-    // this.updateDivvies();
+    this.handleUpdateDivvies();
     
   };
 
@@ -89,18 +106,23 @@ class App extends Component {
 
   listenToKeyPurchaseEvent = () => {
     this.fomo.events.keysPurchased().on("data", async (evt) => {
+      console.log("evt");
+      console.log(evt);
       this.setState({ userKeyBalance: evt.returnValues._userKeyBalance }); 
       this.setState({ totalKeyBalance: evt.returnValues._totalKeys });
       this.setState({ keyPrice: evt.returnValues._keyPrice });
       this.setState({ divPool: evt.returnValues._divPool });
       this.setState({ jackpot: evt.returnValues._jackpot });
+      // console.log(evt);
       console.log("this.state.userKeyBalance:");   
       console.log(this.state.userKeyBalance);  
     });
   }
 
   listenToUpdateDivviesEvent = () => {
-    this.fomo.events.contractBalance().on("data", async (evt) => {
+    this.fomo.events.userDivvies().on("data", async (evt) => {
+      console.log("evt");
+      console.log(evt);
       this.setState({ userDivvies: evt.returnValues._userDivvies }); 
       console.log("this.state.userDivvies:");   
       console.log(this.state.userDivvies);  
@@ -159,6 +181,7 @@ class App extends Component {
     this.setState({ userKeyBalance: getUserKeyBalanceResult });
     console.log("getUserKeyBalanceResult");
     console.log(getUserKeyBalanceResult);
+    this.listenToUpdateDivviesEvent();
   }
 
 
@@ -176,18 +199,14 @@ class App extends Component {
     console.log(getKeyPriceResult);
   }
 
-  updateDivvies = async() => {
-    let updateDivviesResult = await this.fomo.methods.updateDivvies().call()
-    this.setState({ userDivvies: updateDivviesResult });
-    console.log("updateDivviesResult");
-    console.log(updateDivviesResult);
+  handleUpdateDivvies = async() => {
+    let handleUpdateDivviesResult = await this.fomo.methods.updateDivvies().call()
+    this.setState({ userDivvies: handleUpdateDivviesResult });
+    console.log("handleUpdateDivviesResult");
+    console.log(handleUpdateDivviesResult);
   }
 
-
   handleKeyAmountChange = (event) => {
-    // const target = event.target;
-    // const value = target.type === "checkbox" ? target.checked : target.value;
-    // const name = target.name;
     console.log("event: ");
     console.log(event);
     this.setState({
@@ -233,7 +252,7 @@ class App extends Component {
           Amount of keys to buy: <input type="number" name="userKeyPurchaseAmount" value={this.state.userKeyPurchaseAmount} onChange={this.handleKeyAmountChange} />
           <Row>
             <Button variant="info" type="button" size="lg" onClick={this.handlePurchaseKeys}>Buy Keys!!!</Button>
-            <Button variant="secondary" type="button" size="lg" onClick={this.updateDivvies}>Refresh Divvies</Button>
+            <Button variant="secondary" type="button" size="lg" onClick={this.handleUpdateDivvies}>Refresh Divvies</Button>
             <Button variant="success" type="button" size="lg" onClick={this.handleWithdrawDivvies}>$$$ Claim Divvies: {this.state.userDivvies}</Button>
           </Row>
           <Keys 
